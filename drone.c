@@ -12,7 +12,7 @@
 double DELAY = 0.1;
 enum { LEFT=1, UP, RIGHT, DOWN, STOP_GAME=KEY_F(10), CONTROLS=4, PAUSE_GAME='p', AUTO_MOVE='m' };
 enum {	MAX_harvest_SIZE=100, 
-		START_harvest_SIZE=0, 
+		START_harvest_SIZE=3, 
 		MAX_FOOD_SIZE=20, 
 		FOOD_EXPIRE_SECONDS=10,
 		SEED_NUMBER=3
@@ -342,18 +342,20 @@ void update(drone_t *head, struct food f[], int key)
 	if(head->autoMove){
         DELAY = 0.1;
 		go(head);
+        goHarvest(head);
 	}
 	else {
         if(key > -1){
             DELAY = 0.03;
 		    go(head);
+            goHarvest(head);
         }
 	}
     if(!(head->direction))
         mvprintw(1, 80, " Border ");
     else{
         mvprintw(1, 80, "        ");
-        goHarvest(head);
+        
     }
 
     refreshFood(food, SEED_NUMBER);// Обновляем еду
@@ -414,8 +416,12 @@ int main()
     timeout(0);    //Отключаем таймаут после нажатия клавиши в цикле
     initFood(food, MAX_FOOD_SIZE);
     putFood(food, SEED_NUMBER);// Кладем зерна
+    
     int key_pressed=0;
     int isFinish = 0;
+
+    //update(drones[i], food, key_pressed);
+
     while( key_pressed != STOP_GAME && !isFinish)//
     {
         clock_t begin = clock();
