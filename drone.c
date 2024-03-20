@@ -331,7 +331,18 @@ void update(drone_t *head, struct food f[], int key)
     //autoChangeDirection(head,f,SEED_NUMBER);
 
 	mvprintw(1, 40, "  x - %d, y - %d, key - %d, dir - %d  ", head->x, head->y, key, head->direction); // вывод координат дрона
-	clock_t begin = clock();
+    
+    
+
+    // ch = '*';
+    // for(size_t i = head->tsize-1; i>0; i--)
+    // {
+    //     head->harvest[i] = head->harvest[i-1];
+    //     if( head->harvest[i].y || head->harvest[i].x)
+    //         mvprintw(head->harvest[i].y, head->harvest[i].x, "%c", ch);
+    // }
+
+
 	 
     if (checkDirection(head, key))
     {
@@ -362,7 +373,7 @@ void update(drone_t *head, struct food f[], int key)
     if (haveEat(head,food))
     {
         addharvest(head);
-        printLevel(head);
+        //printLevel(head);
         //~ DELAY -= 0.009;
     }
 }
@@ -419,6 +430,17 @@ int main()
     
     int key_pressed=0;
     int isFinish = 0;
+
+    char ch = '@';
+    mvprintw(drones[0]->y, drones[0]->x, "%c", ch);
+
+    ch = '*';
+    for(int i = 0; i < drones[0]->tsize - 1; i++)
+    {
+        drones[0]->harvest[i].y = drones[0]->y;
+        drones[0]->harvest[i].x = (drones[0]->x) - 1 - i;
+        mvprintw(drones[0]->harvest[i].y, drones[0]->harvest[i].x, "%c", ch);
+    }
 
     //update(drones[i], food, key_pressed);
 
