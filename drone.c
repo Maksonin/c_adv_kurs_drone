@@ -11,8 +11,8 @@
 
 double DELAY = 0.1;
 enum { LEFT=1, UP, RIGHT, DOWN, STOP_GAME=KEY_F(10), CONTROLS=4, PAUSE_GAME='p', AUTO_MOVE='m' };
-enum {	MAX_harvest_SIZE=100, 
-		START_harvest_SIZE=3, 
+enum {	MAX_HARVEST_SIZE=100, 
+		START_HARVEST_SIZE=6, 
 		MAX_FOOD_SIZE=20, 
 		FOOD_EXPIRE_SECONDS=10,
 		SEED_NUMBER=3
@@ -42,7 +42,7 @@ struct control_buttons pleer1_controls[CONTROLS] = {{'s', 'w', 'a', 'd'},
  Структура drone содержит в себе
  x,y - координаты текущей позиции
  direction - направление движения
- tsize - количество телег
+ cartSize - количество телег
  *harvest -  ссылка на телеги
  */
 typedef struct drone_t
@@ -52,7 +52,8 @@ typedef struct drone_t
     int direction;
     uint8_t speed;
     _Bool autoMove;
-    size_t tsize;
+    size_t cartSize;
+    size_t loadedCart;
     struct harvest_t *harvest;
     struct control_buttons* controls;
 } drone_t;
@@ -100,11 +101,12 @@ void initHarvest(harvest_t t[], size_t size)
 void initDrone(drone_t *head[], size_t size, int x, int y,int i)
 {
     head[i]    = (drone_t*)malloc(sizeof(drone_t));
-	harvest_t*  harvest  = (harvest_t*) malloc(MAX_harvest_SIZE*sizeof(harvest_t));
-    initHarvest(harvest, MAX_harvest_SIZE);
+	harvest_t*  harvest  = (harvest_t*) malloc(MAX_HARVEST_SIZE*sizeof(harvest_t));
+    initHarvest(harvest, MAX_HARVEST_SIZE);
     initHead(head[i], x, y);
     head[i]->harvest  = harvest; // прикрепляем к голове телеги
-    head[i]->tsize    = size+1;
+    head[i]->cartSize    = size+1;
+    head[i]->loadedCart  = 0;
 	head[i]->autoMove = false;
     head[i]->controls = default_controls;
     //~ head->controls = default_controls[1];
@@ -174,18 +176,26 @@ void go(struct drone_t *head)
  */
 void goHarvest(struct drone_t *head)
 {
-    char ch = '*';
-    mvprintw(head->harvest[head->tsize-1].y, head->harvest[head->tsize-1].x, " ");
-    for(size_t i = head->tsize-1; i>0; i--)
+    char ch = '_';
+    char loadch = '0';
+    mvprintw(head->harvest[head->cartSize-1].y, head->harvest[head->cartSize-1].x, " ");
+    for(size_t i = head->cartSize-1; i>0; i--)
     {
         head->harvest[i] = head->harvest[i-1];
-        if( head->harvest[i].y || head->harvest[i].x)
-            mvprintw(head->harvest[i].y, head->harvest[i].x, "%c", ch);
+        if( head->harvest[i].y || head->harvest[i].x){
+            if(i >=  head->loadedCart)
+                mvprintw(head->harvest[i].y, head->harvest[i].x, "%c", ch);
+            else
+                mvprintw(head->harvest[i].y, head->harvest[i].x, "%c", loadch);
+        }
     }
     head->harvest[0].x = head->x;
     head->harvest[0].y = head->y;
 }
 
+/*
+*
+*/
 void changeDirection(struct drone_t* drone, const int32_t key)
 {
     for (int i = 0; i < CONTROLS; i++)
@@ -201,6 +211,9 @@ void changeDirection(struct drone_t* drone, const int32_t key)
     }
 }
 
+/*
+*
+*/
 int checkDirection(drone_t* drone, int32_t key)
 {
     for (int i = 0; i < CONTROLS; i++)
@@ -244,6 +257,9 @@ void putFood(struct food f[], size_t number_seeds)
     }
 }
 
+/*
+*
+*/
 void refreshFood(struct food f[], int nfood)
 {
     for(size_t i=0; i<nfood; i++)
@@ -258,9 +274,12 @@ void refreshFood(struct food f[], int nfood)
     }
 }
 
+/*
+*
+*/
 void repairSeed(struct food f[], size_t nfood, struct drone_t *head)
 {
-    for( size_t i=0; i<head->tsize; i++ )
+    for( size_t i=0; i<head->cartSize; i++ )
         for( size_t j=0; j<nfood; j++ )
         {
 		/* Если хвост совпадает с зерном */
@@ -282,7 +301,9 @@ void repairSeed(struct food f[], size_t nfood, struct drone_t *head)
         }
 }
 
-
+/*
+*
+*/
 _Bool haveEat(struct drone_t *head, struct food f[])
 {
     for(size_t i=0; i<MAX_FOOD_SIZE; i++)
@@ -299,18 +320,24 @@ _Bool haveEat(struct drone_t *head, struct food f[])
  */
 void addharvest(struct drone_t *head)
 {
-    if(head == NULL || head->tsize>MAX_harvest_SIZE)
+    if(head == NULL || head->cartSize>MAX_HARVEST_SIZE)
     {
         mvprintw(0, 0, "Can't add harvest");
         return;
     }
-    head->tsize++;
+    head->loadedCart++;
 }
 
+/*
+*
+*/
 int distance(const drone_t drone, const struct food food) {   // вычисляет количество ходов до еды
     return (abs(drone.x - food.x) + abs(drone.y - food.y));
 }
 
+/*
+*
+*/
 void autoChangeDirection(drone_t *drone, struct food food[], int foodSize) {
     int pointer = 0;
     for (int i = 1; i < foodSize; i++) {   // ищем ближайшую еду
@@ -325,24 +352,14 @@ void autoChangeDirection(drone_t *drone, struct food food[], int foodSize) {
     }
 }
 
-
+/*
+*
+*/
 void update(drone_t *head, struct food f[], int key)
 {
     //autoChangeDirection(head,f,SEED_NUMBER);
 
 	mvprintw(1, 40, "  x - %d, y - %d, key - %d, dir - %d  ", head->x, head->y, key, head->direction); // вывод координат дрона
-    
-    
-
-    // ch = '*';
-    // for(size_t i = head->tsize-1; i>0; i--)
-    // {
-    //     head->harvest[i] = head->harvest[i-1];
-    //     if( head->harvest[i].y || head->harvest[i].x)
-    //         mvprintw(head->harvest[i].y, head->harvest[i].x, "%c", ch);
-    // }
-
-
 	 
     if (checkDirection(head, key))
     {
@@ -378,6 +395,9 @@ void update(drone_t *head, struct food f[], int key)
     }
 }
 
+/*
+*
+*/
 void pause(void)
 {
     int max_x = 0, max_y = 0;
@@ -388,33 +408,42 @@ void pause(void)
     mvprintw(max_y / 2, max_x / 2 - 5, "                          ");
 }
 
+/*
+*
+*/
 _Bool isCrush(drone_t * drone)
 {
-        for(size_t i=1; i<drone->tsize; i++)
+        for(size_t i=1; i<drone->cartSize; i++)
             if(drone->x == drone->harvest[i].x && drone->y == drone->harvest[i].y)
                 return 1;
     return 0;
 }
 
+/*
+*
+*/
 void printLevel(struct drone_t *head)
 {
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
-    mvprintw(0, max_x - 10, "LEVEL: %d", head->tsize);
+    mvprintw(0, max_x - 10, "LEVEL: %d", head->cartSize);
 }
 
+/*
+*
+*/
 void printExit(struct drone_t *head)
 {
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
-    mvprintw(max_y / 2, max_x / 2 - 5, "Your LEVEL is %d", head->tsize);
+    mvprintw(max_y / 2, max_x / 2 - 5, "Your LEVEL is %d", head->cartSize);
 }
 
 int main()
 {
 	drone_t* drones[PLAYERS];
     for (int i = 0; i < PLAYERS; i++)
-        initDrone(drones, START_harvest_SIZE, 10+i*10, 10+i*10, i);
+        initDrone(drones, START_HARVEST_SIZE, 10+i*10, 10+i*10, i);
 
     drones[0]->controls = pleer1_controls;
     // drones[1]->controls = pleer2_controls;
@@ -431,19 +460,19 @@ int main()
     int key_pressed=0;
     int isFinish = 0;
 
+    /*  */
     char ch = '@';
     mvprintw(drones[0]->y, drones[0]->x, "%c", ch);
-
-    ch = '*';
-    for(int i = 0; i < drones[0]->tsize - 1; i++)
+    /*  */
+    ch = '_';
+    for(int i = 0; i < drones[0]->cartSize - 1; i++)
     {
         drones[0]->harvest[i].y = drones[0]->y;
         drones[0]->harvest[i].x = (drones[0]->x) - 1 - i;
         mvprintw(drones[0]->harvest[i].y, drones[0]->harvest[i].x, "%c", ch);
     }
-
-    //update(drones[i], food, key_pressed);
-
+    /*  */
+    
     while( key_pressed != STOP_GAME && !isFinish)//
     {
         clock_t begin = clock();
