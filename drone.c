@@ -11,7 +11,7 @@
 
 double DELAY = 0.1;
 enum { LEFT=1, UP, RIGHT, DOWN, STOP_GAME=KEY_F(10), CONTROLS=4, PAUSE_GAME='p', AUTO_MOVE='m' };
-enum {	MAX_HARVEST_SIZE=100, 
+enum {	MAX_HARVEST_SIZE=6, 
 		START_HARVEST_SIZE=6, 
 		MAX_FOOD_SIZE=20, 
 		FOOD_EXPIRE_SECONDS=10,
@@ -49,6 +49,8 @@ typedef struct drone_t
 {
     int x;
     int y;
+    int harvestStartX;
+    int harvestStartY;
     int direction;
     uint8_t speed;
     _Bool autoMove;
@@ -65,6 +67,7 @@ typedef struct harvest_t
 {
     int x;
     int y;
+    _Bool full;
 } harvest_t;
 
 /*
@@ -90,7 +93,7 @@ void initHead(drone_t *head, int x, int y)
 /* Инициализация телег */
 void initHarvest(harvest_t t[], size_t size)
 {
-    struct harvest_t init_t={0,0};
+    struct harvest_t init_t={0,0,0};
     for(size_t i=0; i<size; i++)
     {
         t[i]=init_t;
@@ -131,6 +134,8 @@ void go(struct drone_t *head)
     int max_x=0, max_y=0;
     getmaxyx(stdscr, max_y, max_x); // macro - размер терминала
     mvprintw(head->y, head->x, " "); // очищаем один символ
+    head->harvestStartX = head->x;
+    head->harvestStartY = head->y;
     switch (head->direction)
     {
         case LEFT:
@@ -177,20 +182,25 @@ void go(struct drone_t *head)
 void goHarvest(struct drone_t *head)
 {
     char ch = '_';
-    char loadch = '0';
-    mvprintw(head->harvest[head->cartSize-1].y, head->harvest[head->cartSize-1].x, " ");
-    for(size_t i = head->cartSize-1; i>0; i--)
-    {
-        head->harvest[i] = head->harvest[i-1];
-        if( head->harvest[i].y || head->harvest[i].x){
-            if(i >=  head->loadedCart)
-                mvprintw(head->harvest[i].y, head->harvest[i].x, "%c", ch);
-            else
-                mvprintw(head->harvest[i].y, head->harvest[i].x, "%c", loadch);
-        }
+    char loadch = '*';
+    
+    for(size_t i = head->cartSize-1; i > 0; i--) {
+        head->harvest[i].x = head->harvest[i-1].x;
+        head->harvest[i].y = head->harvest[i-1].y;
+
+        if(head->harvest[i].full)
+            mvprintw(head->harvest[i].y, head->harvest[i].x, "%c", loadch);
+        else
+            mvprintw(head->harvest[i].y, head->harvest[i].x, "%c", ch);
     }
-    head->harvest[0].x = head->x;
-    head->harvest[0].y = head->y;
+    mvprintw(head->harvest[head->cartSize-1].y, head->harvest[head->cartSize-1].x, " ");
+    
+    head->harvest[0].x = head->harvestStartX;
+    head->harvest[0].y = head->harvestStartY;
+    if(head->harvest[0].full)
+        mvprintw(head->harvest[0].y, head->harvest[0].x, "%c", loadch);
+    else
+        mvprintw(head->harvest[0].y, head->harvest[0].x, "%c", ch);
 }
 
 /*
@@ -309,8 +319,11 @@ _Bool haveEat(struct drone_t *head, struct food f[])
     for(size_t i=0; i<MAX_FOOD_SIZE; i++)
         if( f[i].enable && head->x == f[i].x && head->y == f[i].y  )
         {
+            if(head->loadedCart == MAX_HARVEST_SIZE)
+                return 0;
+                
             f[i].enable = 0;
-            return 1;
+            return 1;    
         }
     return 0;
 }
@@ -320,12 +333,13 @@ _Bool haveEat(struct drone_t *head, struct food f[])
  */
 void addharvest(struct drone_t *head)
 {
-    if(head == NULL || head->cartSize>MAX_HARVEST_SIZE)
+    if(head == NULL || head->loadedCart >= MAX_HARVEST_SIZE)
     {
         mvprintw(0, 0, "Can't add harvest");
         return;
     }
     head->loadedCart++;
+    head->harvest[head->loadedCart - 1].full = true;
 }
 
 /*
@@ -390,7 +404,7 @@ void update(drone_t *head, struct food f[], int key)
     if (haveEat(head,food))
     {
         addharvest(head);
-        //printLevel(head);
+        printLevel(head);
         //~ DELAY -= 0.009;
     }
 }
@@ -426,7 +440,7 @@ void printLevel(struct drone_t *head)
 {
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
-    mvprintw(0, max_x - 10, "LEVEL: %d", head->cartSize);
+    mvprintw(0, max_x - 20, "FOOD: %d / %d", head->loadedCart, MAX_HARVEST_SIZE);
 }
 
 /*
