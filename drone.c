@@ -14,8 +14,8 @@ enum { LEFT=1, UP, RIGHT, DOWN, STOP_GAME=KEY_F(10), CONTROLS=4, PAUSE_GAME='p',
 enum {	MAX_HARVEST_SIZE=6, 
 		START_HARVEST_SIZE=6, 
 		MAX_FOOD_SIZE=20, 
-		FOOD_EXPIRE_SECONDS=10,
-		SEED_NUMBER=3
+		FOOD_EXPIRE_SECONDS=0,
+		SEED_NUMBER=20
 };
 
 // Структура для хранения кодов управления дроном
@@ -274,13 +274,14 @@ void refreshFood(struct food f[], int nfood)
 {
     for(size_t i=0; i<nfood; i++)
     {
-        if( f[i].put_time )
-        {
-            if( !f[i].enable || (time(NULL) - f[i].put_time) > FOOD_EXPIRE_SECONDS )
+        //if( f[i].put_time )
+        // {
+            //if( !f[i].enable || (time(NULL) - f[i].put_time) > FOOD_EXPIRE_SECONDS )
+            if( !f[i].enable )
             {
                 putFoodSeed(&f[i]);
             }
-        }
+        // }
     }
 }
 
@@ -295,8 +296,9 @@ void repairSeed(struct food f[], size_t nfood, struct drone_t *head)
 		/* Если хвост совпадает с зерном */
             if( f[j].x == head->harvest[i].x && f[j].y == head->harvest[i].y && f[i].enable )
             {
-                mvprintw(1, 0, "Repair harvest seed %u",j);
-                putFoodSeed(&f[j]);
+                //mvprintw(1, 0, "Repair harvest seed %u - %d - %d  ", j, f[j].y, f[j].x);
+                //putFoodSeed(&f[j]);
+                mvprintw(f[j].y, f[j].x, "$");
             }
         }
     for( size_t i=0; i<nfood; i++ )
@@ -319,11 +321,14 @@ _Bool haveEat(struct drone_t *head, struct food f[])
     for(size_t i=0; i<MAX_FOOD_SIZE; i++)
         if( f[i].enable && head->x == f[i].x && head->y == f[i].y  )
         {
-            if(head->loadedCart == MAX_HARVEST_SIZE)
+            if(head->loadedCart == MAX_HARVEST_SIZE){
+                mvprintw(0, 50, "!!!");
                 return 0;
-                
-            f[i].enable = 0;
-            return 1;    
+            }
+            else {  
+                f[i].enable = 0;
+                return 1;
+            }
         }
     return 0;
 }
