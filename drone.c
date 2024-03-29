@@ -61,8 +61,8 @@ typedef struct drone_t
 } drone_t;
 
 /*
- Массив состоящий из координат x,y (описывает телеги)
- */
+* Массив состоящий из координат x,y (описывает телеги)
+*/
 typedef struct harvest_t
 {
     int x;
@@ -71,8 +71,8 @@ typedef struct harvest_t
 } harvest_t;
 
 /*
- Массив состоящий из координат x,y (описывает овощи на поле)
- */
+* Массив состоящий из координат x,y (описывает овощи на поле)
+*/
 struct food
 {
     int x;
@@ -82,7 +82,18 @@ struct food
     uint8_t enable;
 } food[MAX_FOOD_SIZE];
 
-/* Инициализация головы дрона */
+/*
+* Структура описания зоны разгрузки
+*/
+struct home
+{
+    int x;
+    int y;
+} home;
+
+/* 
+* Инициализация головы дрона 
+*/
 void initHead(drone_t *head, int x, int y)
 {
     head->x = x;
@@ -90,7 +101,9 @@ void initHead(drone_t *head, int x, int y)
     head->direction = RIGHT;
 }
 
-/* Инициализация телег */
+/* 
+* Инициализация телег 
+*/
 void initHarvest(harvest_t t[], size_t size)
 {
     struct harvest_t init_t={0,0,0};
@@ -100,7 +113,9 @@ void initHarvest(harvest_t t[], size_t size)
     }
 }
 
-/* Инициализация комплекса дрон + телеги */
+/* 
+* Инициализация комплекса дрон + телеги 
+*/
 void initDrone(drone_t *head[], size_t size, int x, int y,int i)
 {
     head[i]    = (drone_t*)malloc(sizeof(drone_t));
@@ -115,13 +130,33 @@ void initDrone(drone_t *head[], size_t size, int x, int y,int i)
     //~ head->controls = default_controls[1];
 }
 
-/* Инициализация еды */
+/* 
+* Инициализация еды 
+*/
 void initFood(struct food f[], size_t size)
 {
     struct food init = {0,0,0,0,0};
     for(size_t i=0; i<size; i++)
     {
         f[i] = init;
+    }
+}
+
+/*
+* Инициализация базы выгрузки
+*/
+void initHome(struct home *base, int x, int y) {
+    base->x = x;
+    base->y = y;
+
+    //mvprintw(1, 90, "home - %d - %d ", base->y, base->x);
+
+    int max_x = 0, max_y = 0;
+    getmaxyx(stdscr, max_y, max_x);
+    if((x < max_x)&&(y < max_y)){
+        mvprintw(base->y-1, base->x-1, "###");
+        mvprintw(base->y  , base->x,   "-");
+        mvprintw(base->y+1, base->x-1, "###");
     }
 }
 
@@ -314,7 +349,7 @@ void repairSeed(struct food f[], size_t nfood, struct drone_t *head)
 }
 
 /*
-*
+* Обработка процесса совмещения дрона с тележками и еды
 */
 _Bool haveEat(struct drone_t *head, struct food f[])
 {
@@ -332,6 +367,24 @@ _Bool haveEat(struct drone_t *head, struct food f[])
         }
     return 0;
 }
+
+/*
+* Обработка прохождения через дом
+*/
+void returnHome(struct drone_t *head, struct home *base)
+{
+    if(head->loadedCart > 0){ // если хоть одна тележка загружена
+        for(int i = 0; i < MAX_HARVEST_SIZE; i++){ // цикл для проверки совмещения тележки с базой
+            if((head->harvest[i].x == base->x) && (head->harvest[i].y == base->y) && (head->harvest[i].full != false)){
+                head->loadedCart--;
+                head->harvest[i].full = false;
+            }
+        }
+    }
+    mvprintw(base->y, base->x,"-"); // отрисовываем базу
+    printLevel(head);
+}
+
 
 /*
  Добавление телеги
@@ -401,11 +454,19 @@ void update(drone_t *head, struct food f[], int key)
     if(!(head->direction))
         mvprintw(1, 80, " Border ");
     else{
-        mvprintw(1, 80, "        ");
-        
+        mvprintw(1, 80, "        ");   
     }
 
+    // тестовый вывод состояния тележек
+    for(int i = 0; i < MAX_HARVEST_SIZE; i++){
+        mvprintw(3 + i, 80, " %d - %d - %d - %d ", i, head->harvest[i].x, head->harvest[i].y, head->harvest[i].full);
+    }
+    // тестовый вывод состояния тележек
+
     refreshFood(food, SEED_NUMBER);// Обновляем еду
+
+    returnHome(head, &home); // проверка на возврат домой
+
     if (haveEat(head,food))
     {
         addharvest(head);
@@ -475,6 +536,8 @@ int main()
     timeout(0);    //Отключаем таймаут после нажатия клавиши в цикле
     initFood(food, MAX_FOOD_SIZE);
     putFood(food, SEED_NUMBER);// Кладем зерна
+
+    initHome(&home, 40, 10);
     
     int key_pressed=0;
     int isFinish = 0;
@@ -510,6 +573,7 @@ int main()
         for (int i = 0; i < PLAYERS; i++)
         {
             update(drones[i], food, key_pressed);
+            
             if(isCrush(drones[i]))
             {
                 printExit(drones[i]);
