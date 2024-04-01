@@ -6,7 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MIN_Y    2
+#define MIN_Y    3
 #define PLAYERS  1
 
 double DELAY = 0.1;
@@ -142,6 +142,14 @@ void initFood(struct food f[], size_t size)
     }
 }
 
+void drowHome(struct home *base){
+    mvprintw(base->y-1, base->x, "#");
+    mvprintw(base->y, base->x-2, "> ");
+    mvprintw(base->y, base->x,   "о");
+    mvprintw(base->y+1, base->x, "#");
+    mvprintw(base->y, base->x+1, " <");
+}
+
 /*
 * Инициализация базы выгрузки
 */
@@ -154,9 +162,7 @@ void initHome(struct home *base, int x, int y) {
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
     if((x < max_x)&&(y < max_y)){
-        mvprintw(base->y-1, base->x-1, "###");
-        mvprintw(base->y  , base->x,   "-");
-        mvprintw(base->y+1, base->x-1, "###");
+        drowHome(base);
     }
 }
 
@@ -381,6 +387,7 @@ void returnHome(struct drone_t *head, struct home *base)
             }
         }
     }
+    else drowHome(base);
     mvprintw(base->y, base->x,"-"); // отрисовываем базу
     printLevel(head);
 }
@@ -538,6 +545,10 @@ int main()
     putFood(food, SEED_NUMBER);// Кладем зерна
 
     initHome(&home, 40, 10);
+
+    
+    for(int i = 0; i < getmaxx(stdscr); i++)
+        mvprintw(2, i,"-");
     
     int key_pressed=0;
     int isFinish = 0;
