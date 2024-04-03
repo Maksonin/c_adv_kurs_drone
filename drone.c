@@ -10,12 +10,13 @@
 #define PLAYERS  1
 
 double DELAY = 0.1;
+int SEED_NUMBER = 10;
+
 enum { LEFT=1, UP, RIGHT, DOWN, STOP_GAME=KEY_F(10), CONTROLS=4, PAUSE_GAME='p', AUTO_MOVE='m' };
 enum {	MAX_HARVEST_SIZE=6, 
 		START_HARVEST_SIZE=6, 
-		MAX_FOOD_SIZE=20, 
+		MAX_FOOD_SIZE=10, 
 		FOOD_EXPIRE_SECONDS=0,
-		SEED_NUMBER=20
 };
 
 // Структура для хранения кодов управления дроном
@@ -180,15 +181,15 @@ void go(struct drone_t *head)
     switch (head->direction)
     {
         case LEFT:
-            if(head->x == 0)
-                head->direction = 0;
+            if(head->x == 0) // проверка на границу
+                head->direction = 0; 
             else if(head->x > 0) {
                 head->direction = LEFT;
 				mvprintw(head->y, --(head->x), "%c", ch);
             }
         break;
         case RIGHT:
-            if(head->x == max_x)
+            if(head->x == max_x - 1) // проверка на границу
                 head->direction = 0;
             else if(head->x < max_x){
                 head->direction = RIGHT;
@@ -196,17 +197,17 @@ void go(struct drone_t *head)
             }
         break;
         case UP:
-            if(head->y == MIN_Y)
+            if(head->y == MIN_Y) // проверка на границу
                 head->direction = 0;
-			if(head->y > MIN_Y){
+			else if(head->y > MIN_Y){
                 head->direction = UP;
 				mvprintw(--(head->y), head->x, "%c", ch);
             }
         break;
         case DOWN:
-            if(head->y == max_y)
+            if(head->y == max_y - 1) // проверка на границу
                 head->direction = 0;
-            if(head->y < max_y){
+            else if(head->y < max_y){
                 head->direction = DOWN;
 				mvprintw(++(head->y), head->x, "%c", ch);
             }
@@ -214,6 +215,9 @@ void go(struct drone_t *head)
         default:
         break;
     }
+    if(!(head->direction))
+        mvprintw(head->y, head->x, "%c", ch);
+    
     refresh();
 }
 
@@ -224,7 +228,9 @@ void goHarvest(struct drone_t *head)
 {
     char ch = '_';
     char loadch = '*';
-    
+    if(!(head->direction))
+        return;
+
     for(size_t i = head->cartSize-1; i > 0; i--) {
         head->harvest[i].x = head->harvest[i-1].x;
         head->harvest[i].y = head->harvest[i-1].y;
@@ -245,7 +251,7 @@ void goHarvest(struct drone_t *head)
 }
 
 /*
-*
+* Выбор направления движения в соответствии с нажатой кнопкой
 */
 void changeDirection(struct drone_t* drone, const int32_t key)
 {
@@ -263,7 +269,8 @@ void changeDirection(struct drone_t* drone, const int32_t key)
 }
 
 /*
-*
+* Проверка текущего направления движения дрона в соответствии с нажатой кнопкой
+* Например: если движение влево и нажата кнопка вправо, то возвращается 0 -> запрет обратного движения
 */
 int checkDirection(drone_t* drone, int32_t key)
 {
@@ -276,7 +283,6 @@ int checkDirection(drone_t* drone, int32_t key)
             return 0;
         }
     return 1;
-
 }
 
 /*
@@ -320,7 +326,7 @@ void refreshFood(struct food f[], int nfood)
             //if( !f[i].enable || (time(NULL) - f[i].put_time) > FOOD_EXPIRE_SECONDS )
             if( !f[i].enable )
             {
-                putFoodSeed(&f[i]);
+                //putFoodSeed(&f[i]);
             }
         // }
     }
@@ -339,7 +345,7 @@ void repairSeed(struct food f[], size_t nfood, struct drone_t *head)
             {
                 //mvprintw(1, 0, "Repair harvest seed %u - %d - %d  ", j, f[j].y, f[j].x);
                 //putFoodSeed(&f[j]);
-                mvprintw(f[j].y, f[j].x, "$");
+                //mvprintw(f[j].y, f[j].x, "$");
             }
         }
     for( size_t i=0; i<nfood; i++ )
@@ -363,7 +369,6 @@ _Bool haveEat(struct drone_t *head, struct food f[])
         if( f[i].enable && head->x == f[i].x && head->y == f[i].y  )
         {
             if(head->loadedCart == MAX_HARVEST_SIZE){
-                mvprintw(0, 50, "!!!");
                 return 0;
             }
             else {  
@@ -375,7 +380,7 @@ _Bool haveEat(struct drone_t *head, struct food f[])
 }
 
 /*
-* Обработка прохождения через дом
+* Обработка прохождения через склад
 */
 void returnHome(struct drone_t *head, struct home *base)
 {
@@ -384,6 +389,7 @@ void returnHome(struct drone_t *head, struct home *base)
             if((head->harvest[i].x == base->x) && (head->harvest[i].y == base->y) && (head->harvest[i].full != false)){
                 head->loadedCart--;
                 head->harvest[i].full = false;
+                SEED_NUMBER--;
             }
         }
     }
@@ -438,30 +444,31 @@ void update(drone_t *head, struct food f[], int key)
 {
     //autoChangeDirection(head,f,SEED_NUMBER);
 
-	mvprintw(1, 40, "  x - %d, y - %d, key - %d, dir - %d  ", head->x, head->y, key, head->direction); // вывод координат дрона
+	mvprintw(1, 40, "  x - %d, y - %d, key - %d, dir - %d, food - %d ", head->x, head->y, key, head->direction, SEED_NUMBER); // вывод координат дрона
 	 
     if (checkDirection(head, key))
     {
         changeDirection(head, key);
     }
-	
-    /*  */
-	if(head->autoMove){
-        DELAY = 0.1;
-		go(head);
-        goHarvest(head);
-	}
-	else {
-        if(key > -1){
-            DELAY = 0.03;
-		    go(head);
+
+    if(!(head->direction)){
+        mvprintw(1, 30, " Border ");
+        return;
+    }
+    else {
+        mvprintw(1, 30, "        ");
+        /*  */
+        if(head->autoMove){
+            DELAY = 0.1;
+            go(head);
             goHarvest(head);
-        }
-	}
-    if(!(head->direction))
-        mvprintw(1, 80, " Border ");
-    else{
-        mvprintw(1, 80, "        ");   
+        } else {
+            if(key > -1){
+                DELAY = 0.03;
+                go(head);
+                goHarvest(head);
+            }
+	    }
     }
 
     // тестовый вывод состояния тележек
@@ -544,7 +551,7 @@ int main()
     initFood(food, MAX_FOOD_SIZE);
     putFood(food, SEED_NUMBER);// Кладем зерна
 
-    initHome(&home, 40, 10);
+    initHome(&home, 15, 28);
 
     
     for(int i = 0; i < getmaxx(stdscr); i++)
@@ -584,6 +591,12 @@ int main()
         for (int i = 0; i < PLAYERS; i++)
         {
             update(drones[i], food, key_pressed);
+
+            if(!SEED_NUMBER){ // если еда на поле закончилась
+                printExit(drones[i]);
+                //isFinish = 1;
+            }
+
             
             if(isCrush(drones[i]))
             {
