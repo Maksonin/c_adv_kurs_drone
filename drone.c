@@ -18,6 +18,10 @@ enum {	MAX_HARVEST_SIZE=6,
 		MAX_FOOD_SIZE=10, 
 		FOOD_EXPIRE_SECONDS=0,
 };
+enum {
+    HARVESTED,
+    CONFLICT
+};
 
 // Структура для хранения кодов управления дроном
 struct control_buttons
@@ -28,16 +32,12 @@ struct control_buttons
     int right;
 } control_buttons;
 
-struct control_buttons default_controls[CONTROLS] = {{'s', 'w', 'a', 'd'},
-                                                     {'S', 'W', 'A', 'D'},
-                                                     {'ы', 'ц', 'ф', 'в'},
-                                                     {'Ы', 'Ц', 'Ф', 'В'}};
-
-struct control_buttons pleer1_controls[CONTROLS] = {{'s', 'w', 'a', 'd'},
-                                                    {'S', 'W', 'A', 'D'},
-                                                    {'ы', 'ц', 'ф', 'в'},
-                                                    {'Ы', 'Ц', 'Ф', 'В'}};
-													
+struct control_buttons default_controls[CONTROLS] = {   {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},
+                                                        {'s', 'w', 'a', 'd'},
+                                                        {'S', 'W', 'A', 'D'},
+                                                        {0xFFFFFFEB, 0xFFFFFFE6, 0xFFFFFFE4, 0xFFFFFFA2},
+                                                        {0xFFFFFF9B, 0xFFFFFF96, 0xFFFFFF94, 0xFFFFFF82}
+};
 
 /*
  Структура drone содержит в себе
@@ -143,6 +143,9 @@ void initFood(struct food f[], size_t size)
     }
 }
 
+/*
+* Функция отрисовки склада
+*/
 void drowHome(struct home *base){
     mvprintw(base->y-1, base->x, "#");
     mvprintw(base->y, base->x-2, "> ");
@@ -315,20 +318,16 @@ void putFood(struct food f[], size_t number_seeds)
 }
 
 /*
-*
+* Отрисовка массива еды
 */
 void refreshFood(struct food f[], int nfood)
 {
     for(size_t i=0; i<nfood; i++)
     {
-        //if( f[i].put_time )
-        // {
-            //if( !f[i].enable || (time(NULL) - f[i].put_time) > FOOD_EXPIRE_SECONDS )
-            if( !f[i].enable )
+            if( !f[i].enable ) // если точка еды активна
             {
-                //putFoodSeed(&f[i]);
+                putFoodSeed(&f[i]); // отрисовываем
             }
-        // }
     }
 }
 
@@ -438,12 +437,13 @@ void autoChangeDirection(drone_t *drone, struct food food[], int foodSize) {
 }
 
 /*
-*
+* Обновление состояния
 */
 void update(drone_t *head, struct food f[], int key)
 {
     //autoChangeDirection(head,f,SEED_NUMBER);
 
+    // вывод координат головы, код кнопки, направления движения, количества оставшейся еды
 	mvprintw(1, 40, "  x - %d, y - %d, key - %d, dir - %d, food - %d ", head->x, head->y, key, head->direction, SEED_NUMBER); // вывод координат дрона
 	 
     if (checkDirection(head, key))
@@ -472,12 +472,10 @@ void update(drone_t *head, struct food f[], int key)
     }
 
     // тестовый вывод состояния тележек
-    for(int i = 0; i < MAX_HARVEST_SIZE; i++){
-        mvprintw(3 + i, 80, " %d - %d - %d - %d ", i, head->harvest[i].x, head->harvest[i].y, head->harvest[i].full);
-    }
+    //for(int i = 0; i < MAX_HARVEST_SIZE; i++){
+    //    mvprintw(3 + i, 80, " %d - %d - %d - %d ", i, head->harvest[i].x, head->harvest[i].y, head->harvest[i].full);
+    //}
     // тестовый вывод состояния тележек
-
-    refreshFood(food, SEED_NUMBER);// Обновляем еду
 
     returnHome(head, &home); // проверка на возврат домой
 
@@ -490,20 +488,20 @@ void update(drone_t *head, struct food f[], int key)
 }
 
 /*
-*
+* Функция временной паузы в работе
 */
 void pause(void)
 {
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
-    mvprintw(max_y / 2, max_x / 2 - 5, " Press P to continue game ");
+    mvprintw(max_y / 2, max_x / 2 - 5, " Press P to continue work ");
     while (getch() != PAUSE_GAME)
     {}
     mvprintw(max_y / 2, max_x / 2 - 5, "                          ");
 }
 
 /*
-*
+* Проверка на аварию
 */
 _Bool isCrush(drone_t * drone)
 {
@@ -514,23 +512,29 @@ _Bool isCrush(drone_t * drone)
 }
 
 /*
-*
+* Вывод количества собранной еды
 */
 void printLevel(struct drone_t *head)
 {
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
-    mvprintw(0, max_x - 20, "FOOD: %d / %d", head->loadedCart, MAX_HARVEST_SIZE);
+    mvprintw(0, max_x - 20, "HARVEST: %d / %d", head->loadedCart, MAX_HARVEST_SIZE);
 }
 
 /*
-*
+* Вывод сообщения об окончании работы
+* 0 - все собрано
+* 1 - конфликт
 */
-void printExit(struct drone_t *head)
+void printExit(int status)
 {
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
-    mvprintw(max_y / 2, max_x / 2 - 5, "Your LEVEL is %d", head->cartSize);
+    char *st[] = {
+        " The harvest is harvested. ",
+        " Conflict! ",
+    };
+    mvprintw(max_y / 2, max_x / 2 - 20, "  %s Press Whitespace to exit.  ", st[status]);
 }
 
 int main()
@@ -539,24 +543,24 @@ int main()
     for (int i = 0; i < PLAYERS; i++)
         initDrone(drones, START_HARVEST_SIZE, 10+i*10, 10+i*10, i);
 
-    drones[0]->controls = pleer1_controls;
+    drones[0]->controls = default_controls;
     // drones[1]->controls = pleer2_controls;
     initscr();
     keypad(stdscr, TRUE); // Включаем F1, F2, стрелки и т.д.
     raw();                // Откдючаем line buffering
     noecho();            // Отключаем echo() режим при вызове getch
     curs_set(FALSE);    //Отключаем курсор
-    mvprintw(0, 0,"Use arrows for control. Press 'F10' for EXIT");
+    mvprintw(0, 0," Press WASD or arrows for move,'M' for on/off automove, 'p' for pause, 'F10' for EXIT");
     timeout(0);    //Отключаем таймаут после нажатия клавиши в цикле
     initFood(food, MAX_FOOD_SIZE);
     putFood(food, SEED_NUMBER);// Кладем зерна
 
-    initHome(&home, 15, 28);
+    initHome(&home, 15, 28); // инициализация склада
 
-    
+    /* Отрисовка линии верхней границы поля */
     for(int i = 0; i < getmaxx(stdscr); i++)
         mvprintw(2, i,"-");
-    
+
     int key_pressed=0;
     int isFinish = 0;
 
@@ -593,15 +597,14 @@ int main()
             update(drones[i], food, key_pressed);
 
             if(!SEED_NUMBER){ // если еда на поле закончилась
-                printExit(drones[i]);
-                //isFinish = 1;
+                printExit(HARVESTED);
+                isFinish = 1;
             }
-
             
             if(isCrush(drones[i]))
             {
-                printExit(drones[i]);
-                //isFinish = 1;
+                printExit(CONFLICT);
+                isFinish = 1;
             }
             repairSeed(food, SEED_NUMBER, drones[i]);
         }
@@ -616,11 +619,20 @@ int main()
         while ((double)(clock() - begin) / CLOCKS_PER_SEC < DELAY)
         {}
     }
+
+    key_pressed=0;
+    while( key_pressed != ' ' )//
+    {
+        key_pressed = getch(); // Считываем клавишу
+    }
+
     for (int i = 0; i < PLAYERS; i++)
     {
         free(drones[i]->harvest);
         free(drones[i]);
     }
+
+
     endwin(); // Завершаем режим curses mod
     return 0;
 }
