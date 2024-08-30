@@ -20,7 +20,8 @@ enum {	MAX_HARVEST_SIZE=6,
 };
 enum {
     HARVESTED,
-    CONFLICT
+    CONFLICT,
+    END
 };
 
 // Структура для хранения кодов управления дроном
@@ -324,10 +325,10 @@ void refreshFood(struct food f[], int nfood)
 {
     for(size_t i=0; i<nfood; i++)
     {
-            if( !f[i].enable ) // если точка еды активна
-            {
-                putFoodSeed(&f[i]); // отрисовываем
-            }
+        if( !f[i].enable ) // если точка еды активна
+        {
+            putFoodSeed(&f[i]); // отрисовываем
+        }
     }
 }
 
@@ -336,27 +337,30 @@ void refreshFood(struct food f[], int nfood)
 */
 void repairSeed(struct food f[], size_t nfood, struct drone_t *head)
 {
-    for( size_t i=0; i<head->cartSize; i++ )
+    for( size_t i=0; i<head->cartSize; i++ ){
         for( size_t j=0; j<nfood; j++ )
         {
 		/* Если хвост совпадает с зерном */
-            if( f[j].x == head->harvest[i].x && f[j].y == head->harvest[i].y && f[i].enable )
+            if( f[j].enable && (f[j].x == head->harvest[i].x) && (f[j].y == head->harvest[i].y) )
             {
+                mvprintw(3, 5, " %d  %d - %d ", f[i].enable, f[j].x, f[j].y);
                 //mvprintw(1, 0, "Repair harvest seed %u - %d - %d  ", j, f[j].y, f[j].x);
                 //putFoodSeed(&f[j]);
-                //mvprintw(f[j].y, f[j].x, "$");
+                mvprintw(f[j].y, f[j].x, "$");
             }
         }
-    for( size_t i=0; i<nfood; i++ )
+    }
+    for( size_t i=0; i<nfood; i++ ){
         for( size_t j=0; j<nfood; j++ )
         {
 		/* Если два зерна на одной точке */
-            if( i!=j && f[i].enable && f[j].enable && f[j].x == f[i].x && f[j].y == f[i].y && f[i].enable )
+            if( i!=j && f[i].enable && f[j].enable && ( f[j].x == f[i].x ) && ( f[j].y == f[i].y ) )
             {
                 mvprintw(1, 0, "Repair same seed %u",j);
                 putFoodSeed(&f[j]);
             }
         }
+    }
 }
 
 /*
@@ -364,18 +368,24 @@ void repairSeed(struct food f[], size_t nfood, struct drone_t *head)
 */
 _Bool haveEat(struct drone_t *head, struct food f[])
 {
-    for(size_t i=0; i<MAX_FOOD_SIZE; i++)
-        if( f[i].enable && head->x == f[i].x && head->y == f[i].y  )
+    for(size_t i=0; i<MAX_FOOD_SIZE; i++){
+        if( f[i].enable && ( head->x == f[i].x ) && ( head->y == f[i].y ) )
         {
             if(head->loadedCart == MAX_HARVEST_SIZE){
+                mvprintw(f[i].y, f[i].x, "$");
+                mvprintw(4, 5, " NO AM :-( ");
                 return 0;
             }
-            else {  
+            else {
+                mvprintw(4, 5, " AM! :-) ");
+                mvprintw(3, 5, " %d  %d - %d ", f[i].enable, f[i].x, f[i].y);
+                mvprintw(f[i].y, f[i].x, " ");
                 f[i].enable = 0;
                 f[i].point = '-';
                 return 1;
             }
         }
+    }
     return 0;
 }
 
@@ -406,7 +416,7 @@ void addharvest(struct drone_t *head)
 {
     if(head == NULL || head->loadedCart >= MAX_HARVEST_SIZE)
     {
-        mvprintw(0, 0, "Can't add harvest");
+        mvprintw(1, 5, "Can't add harvest");
         return;
     }
     head->loadedCart++;
@@ -467,7 +477,7 @@ void autoChangeDirection(drone_t *drone, struct food food[], int foodSize) {
     int pointer = 0;
     int newDirection = 0;
     for (int i = 0; i < foodSize; i++) {   // ищем ближайшую еду
-        if(food[i].enable)
+        if((food[i].enable) && (food[i].point != "O")) // если еда присутствует и не помечена как выбранная
             pointer = (distance(*drone, food[i]) < distance(*drone, food[pointer])) ? i : pointer;
     }
 
@@ -548,15 +558,13 @@ void update(drone_t *head, struct food f[], int key)
     }
 
     // тестовый вывод состояния тележек
-    //for(int i = 0; i < MAX_HARVEST_SIZE; i++){
-    //    mvprintw(3 + i, 80, " %d - %d - %d - %d ", i, head->harvest[i].x, head->harvest[i].y, head->harvest[i].full);
-    //}
-    // тестовый вывод состояния тележек
-    // тестовый вывод состояния еды
-    for(int i = 0; i < SEED_NUMBER; i++){
-       mvprintw(3 + i, 80, " %d - %d - %c - %d ", food[i].x, food[i].y, food[i].point, food[i].enable);
+    for(int i = 0; i < MAX_HARVEST_SIZE; i++){
+       mvprintw(3 + i, 80, " %d - %d - %d - %d ", i, head->harvest[i].x, head->harvest[i].y, head->harvest[i].full);
     }
     // тестовый вывод состояния еды
+    for(int i = 0; i < MAX_FOOD_SIZE; i++){
+       mvprintw(3 + i, 100, " %d - %d - %c - %d ", food[i].x, food[i].y, food[i].point, food[i].enable);
+    }
 
     returnHome(head, &home); // проверка на возврат домой
 
@@ -606,19 +614,23 @@ void printLevel(struct drone_t *head)
 * Вывод сообщения об окончании работы
 * 0 - все собрано
 * 1 - конфликт
+* 2 - выход
 */
 void printExit(int status)
 {
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
     char *st[] = {
-        " The harvest is harvested. ",
-        " Conflict! ",
+        "The harvest is harvested.",
+        "Conflict!",
+        "Exit",
     };
-    mvprintw(max_y / 2, max_x / 2 - 20, "  %s Press Whitespace to exit.  ", st[status]);
+    mvprintw((max_y / 2)-1, (max_x / 2) - 14 + (strlen(st[status])/2) , " %s ", st[status]);
+    mvprintw(max_y / 2, max_x / 2 - 20, "  Press Whitespace to exit.  ");
 }
 
-int main()
+/* Функция main */
+int main(void)
 {
 	drone_t* drones[PLAYERS];
     for (int i = 0; i < PLAYERS; i++)
@@ -642,13 +654,11 @@ int main()
     for(int i = 0; i < getmaxx(stdscr); i++)
         mvprintw(2, i,"-");
 
-    int key_pressed=0;
-    int isFinish = 0;
-
-    /*  */
+    /** Отрисовка дрона и телег **/
+    /* отрисовка головы дрона */
     char ch = '@';
     mvprintw(drones[0]->y, drones[0]->x, "%c", ch);
-    /*  */
+    /* отрисовка телег */
     ch = '_';
     for(int i = 0; i < drones[0]->cartSize - 1; i++)
     {
@@ -656,8 +666,13 @@ int main()
         drones[0]->harvest[i].x = (drones[0]->x) - 1 - i;
         mvprintw(drones[0]->harvest[i].y, drones[0]->harvest[i].x, "%c", ch);
     }
-    /*  */
+    /* **** **** */
     
+    /* ******* ОСНОВНОЙ ЦИКЛ ******* */
+
+    int key_pressed=0;
+    int isFinish = 0;
+
     while( key_pressed != STOP_GAME && !isFinish)//
     {
         clock_t begin = clock();
@@ -682,12 +697,12 @@ int main()
                 isFinish = 1;
             }
             
-            if(isCrush(drones[i]))
+            if(isCrush(drones[i])) // если дтп
             {
                 printExit(CONFLICT);
                 isFinish = 1;
             }
-            repairSeed(food, SEED_NUMBER, drones[i]);
+            repairSeed(food, MAX_FOOD_SIZE, drones[i]);
         }
 
         // обработка паузы
@@ -697,9 +712,11 @@ int main()
         }
         refresh();//Обновление экрана, вывели кадр анимации
 		
-        while ((double)(clock() - begin) / CLOCKS_PER_SEC < DELAY)
-        {}
+        while ((double)(clock() - begin) / CLOCKS_PER_SEC < DELAY){}
     }
+
+    if(key_pressed == STOP_GAME)
+        printExit(END); // вывод сообщения об окончании сбора
 
     key_pressed=0;
     while( key_pressed != ' ' )//
