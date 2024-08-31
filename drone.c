@@ -12,7 +12,17 @@
 double DELAY = 0.1;
 int SEED_NUMBER = 10;
 
-enum { LEFT=1, UP, RIGHT, DOWN, STOP_GAME=KEY_F(10), CONTROLS=4, PAUSE_GAME='p', AUTO_MOVE='m' };
+enum {  LEFT=1, 
+        UP,
+        RIGHT, 
+        DOWN,
+};
+
+enum {  STOP_GAME=KEY_F(10), 
+        CONTROLS=4, 
+        PAUSE_GAME='p', 
+        AUTO_MOVE='m' 
+};
 enum {	MAX_HARVEST_SIZE=6, 
 		START_HARVEST_SIZE=6, 
 		MAX_FOOD_SIZE=10, 
@@ -58,9 +68,11 @@ typedef struct drone_t
     _Bool autoMove;
     size_t cartSize;
     size_t loadedCart;
+    // struct borders *borders;
     struct harvest_t *harvest;
-    struct control_buttons* controls;
+    struct control_buttons *controls;
 } drone_t;
+
 
 /*
 * Массив состоящий из координат x,y (описывает телеги)
@@ -71,6 +83,14 @@ typedef struct harvest_t
     int y;
     _Bool full;
 } harvest_t;
+
+/* Индикация границ вокруг головы дрона */
+struct borders {
+    _Bool up;
+    _Bool down;
+    _Bool left;
+    _Bool right;
+} borders;
 
 /*
 * Массив состоящий из координат x,y (описывает овощи на поле)
@@ -124,6 +144,7 @@ void initDrone(drone_t *head[], size_t size, int x, int y,int i)
 	harvest_t*  harvest  = (harvest_t*) malloc(MAX_HARVEST_SIZE*sizeof(harvest_t));
     initHarvest(harvest, MAX_HARVEST_SIZE);
     initHead(head[i], x, y);
+    // initBorders(head[i]);
     head[i]->harvest  = harvest; // прикрепляем к голове телеги
     head[i]->cartSize    = size+1;
     head[i]->loadedCart  = 0;
@@ -174,7 +195,7 @@ void initHome(struct home *base, int x, int y) {
 /*
  Движение дрона с учетом текущего направления движения
  */
-void go(struct drone_t *head)
+void go(drone_t *head)
 {
     char ch = '@';
     int max_x=0, max_y=0;
@@ -184,34 +205,49 @@ void go(struct drone_t *head)
     head->harvestStartY = head->y;
     switch (head->direction)
     {
+        case 0:
+
+        break;
         case LEFT:
-            if(head->x == 0) // проверка на границу
-                head->direction = 0; 
+            if(head->x == 0){ // проверка на границу
+                // head->borders->left = 1;
+                head->direction = 0;
+            }
             else if(head->x > 0) {
+                // head->borders->left = 0;
                 head->direction = LEFT;
 				mvprintw(head->y, --(head->x), "%c", ch);
             }
         break;
         case RIGHT:
-            if(head->x == max_x - 1) // проверка на границу
+            if(head->x == max_x - 1){ // проверка на границу
                 head->direction = 0;
+                // head->borders->right = 1;
+            }
             else if(head->x < max_x){
+                // head->borders->right = 0;
                 head->direction = RIGHT;
 				mvprintw(head->y, ++(head->x), "%c", ch);
             }
         break;
         case UP:
-            if(head->y == MIN_Y) // проверка на границу
+            if(head->y == MIN_Y) { // проверка на границу
+                // head->borders->up = 1;
                 head->direction = 0;
+            }
 			else if(head->y > MIN_Y){
+                // head->borders->up = 0;
                 head->direction = UP;
 				mvprintw(--(head->y), head->x, "%c", ch);
             }
         break;
         case DOWN:
-            if(head->y == max_y - 1) // проверка на границу
+            if(head->y == max_y - 1){ // проверка на границу
+                // head->borders->down = 1;
                 head->direction = 0;
+            }
             else if(head->y < max_y){
+                // head->borders->down = 0;
                 head->direction = DOWN;
 				mvprintw(++(head->y), head->x, "%c", ch);
             }
@@ -328,7 +364,8 @@ void refreshFood(struct food f[], int nfood)
         if( f[i].enable ) // если точка еды активна
         {
             //putFoodSeed(&f[i]); // отрисовываем
-            mvprintw(f[i].y, f[i].x, "%d", i);
+            // mvprintw(f[i].y, f[i].x, "%d", i);
+            mvprintw(f[i].y, f[i].x, "%s", "$");
         }
     }
 }
@@ -421,8 +458,8 @@ void addharvest(struct drone_t *head)
 /*
 *
 */
-_Bool findHarvestConflict(drone_t *drone, struct food food[], int newDirection){
-/***/
+_Bool findHarvestConflict(drone_t *drone, int newDirection){
+    /***/
     char *st[] = {
         "   -   ",
         " Left  ",
@@ -469,54 +506,71 @@ int distance(const drone_t drone, const struct food food) {   // вычисля�
 * Автоматическое следование дрона на урожай
 */
 void autoChangeDirection(drone_t *drone, struct food f[], int foodSize) {
-    int pointer = 0;
+    int pointer = -1;
     int newDirection = 0;
+    struct dronePurpose {
+        int x;
+        int y;
+    } dronePurpose;
+
+    int max_x=0, max_y=0;
+    getmaxyx(stdscr, max_y, max_x); 
+
     for (int i = 0; i < foodSize; i++) {   // ищем ближайшую еду
-        if((f[i].enable) && (f[i].point != "O")){ // если еда присутствует и не помечена как выбранная
-            pointer = (distance(*drone, f[i]) < distance(*drone, f[pointer])) ? i : pointer;
+        // if((f[i].enable) && (f[i].point != 'O')){ // если еда не собрана и не помечена как выбранная
+        if(f[i].enable){ // если еда не собрана и не помечена как выбранная
+            if(distance(*drone, f[i]) < distance(*drone, f[pointer])){
+                pointer = i;
+                dronePurpose.x = f[i].x;
+                dronePurpose.y = f[i].y;
+            }
             mvprintw(3,1,"%d -- %d %d   ", pointer, distance(*drone, f[i]), distance(*drone, f[pointer]));
         }
+    }
+    if(pointer == -1){
+        dronePurpose.x = max_x/2;
+        dronePurpose.y = max_x/2;
     }
     
     // выделение еды к которой стремится дрон
     f[pointer].point = 'O';
-    mvprintw(f[pointer].y, f[pointer].x, "%c", f[pointer].point);
-    
+    mvprintw(dronePurpose.y, dronePurpose.x, "%c", f[pointer].point);
+
     // если дрон в стороне от еды
-    if ((drone->direction == RIGHT || drone->direction == LEFT) && (drone->y != f[pointer].y)) {  // горизонтальное движение
+    if ((drone->direction == RIGHT || drone->direction == LEFT) && (drone->y != dronePurpose.y)) {  // горизонтальное движение
         //drone->direction = (food[pointer].y > drone->y) ? DOWN : UP;
-        newDirection = (f[pointer].y > drone->y) ? DOWN : UP;
-        if(findHarvestConflict(drone, f, newDirection)){ // проверка на наличие хвоста по направлению движения
+        newDirection = (dronePurpose.y > drone->y) ? DOWN : UP;
+        if(findHarvestConflict(drone, newDirection)){ // проверка на наличие хвоста по направлению движения
             drone->direction = newDirection;
         }
     } 
-    else if ((drone->direction == DOWN || drone->direction == UP) && (drone->x != f[pointer].x)) {  // вертикальное движение
+    else if ((drone->direction == DOWN || drone->direction == UP) && (drone->x != dronePurpose.x)) {  // вертикальное движение
         //drone->direction = (food[pointer].x > drone->x) ? RIGHT : LEFT;
-        newDirection = (f[pointer].x > drone->x) ? RIGHT : LEFT;
-        if(findHarvestConflict(drone, f, newDirection)){ // проверка на наличие хвоста по направлению движения
+        newDirection = (dronePurpose.x > drone->x) ? RIGHT : LEFT;
+        if(findHarvestConflict(drone, newDirection)){ // проверка на наличие хвоста по направлению движения
             drone->direction = newDirection;
         }
     }
 
-    // // если дрон на одной линии с едой
-    // if(drone->x == f[pointer].x) {
-    //     if(((drone->y > f[pointer].y) && (drone->direction == DOWN)) || ((drone->y < food[pointer].y) && (drone->direction == UP))){
-    //         newDirection = LEFT;
-    //         if(!findHarvestConflict(drone, f, newDirection))
-    //            drone->direction = newDirection;
-    //         else 
-    //             drone->direction = RIGHT;
-    //     }
-    // }
-    // if(drone->y == f[pointer].y) {
-    //     if(((drone->x > f[pointer].x) && (drone->direction == RIGHT)) || ((drone->x < f[pointer].x) && (drone->direction == LEFT))){
-    //         newDirection = UP;
-    //         if(!findHarvestConflict(drone, f, newDirection))
-    //            drone->direction = newDirection;
-    //         else 
-    //             drone->direction = DOWN;
-    //     }
-    // }
+    // если дрон на одной линии с едой
+    if(drone->x == dronePurpose.x) {
+        if(((drone->y > dronePurpose.y) && (drone->direction == DOWN)) || ((drone->y < dronePurpose.y) && (drone->direction == UP))){
+            newDirection = LEFT;
+            if(findHarvestConflict(drone, newDirection))
+               drone->direction = newDirection;
+            else 
+                drone->direction = RIGHT;
+        }
+    }
+    if(drone->y == dronePurpose.y) {
+        if(((drone->x > dronePurpose.x) && (drone->direction == RIGHT)) || ((drone->x < dronePurpose.x) && (drone->direction == LEFT))){
+            newDirection = UP;
+            if(findHarvestConflict(drone, newDirection))
+               drone->direction = newDirection;
+            else 
+                drone->direction = DOWN;
+        }
+    }
 }
 
 /*
