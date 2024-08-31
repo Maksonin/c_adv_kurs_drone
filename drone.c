@@ -68,7 +68,7 @@ typedef struct drone_t
     _Bool autoMove;
     size_t cartSize;
     size_t loadedCart;
-    // struct borders *borders;
+    struct borders_t *border;
     struct harvest_t *harvest;
     struct control_buttons *controls;
 } drone_t;
@@ -85,12 +85,12 @@ typedef struct harvest_t
 } harvest_t;
 
 /* Индикация границ вокруг головы дрона */
-struct borders {
+typedef struct borders_t {
     _Bool up;
     _Bool down;
     _Bool left;
     _Bool right;
-} borders;
+} borders_t;
 
 /*
 * Массив состоящий из координат x,y (описывает овощи на поле)
@@ -136,20 +136,37 @@ void initHarvest(harvest_t t[], size_t size)
 }
 
 /* 
+* Инициализация границ 
+*/
+void initBorder(borders_t *borders){
+    // struct borders_t initBorders = {0,0,0,0};
+    borders->up=0;
+    borders->down=0;
+    borders->left=0;
+    borders->right=0;
+}
+
+/* 
 * Инициализация комплекса дрон + телеги 
 */
 void initDrone(drone_t *head[], size_t size, int x, int y,int i)
 {
     head[i]    = (drone_t*)malloc(sizeof(drone_t));
-	harvest_t*  harvest  = (harvest_t*) malloc(MAX_HARVEST_SIZE*sizeof(harvest_t));
+	harvest_t*  harvest  = (harvest_t*)malloc(MAX_HARVEST_SIZE*sizeof(harvest_t));
+    borders_t* borders = (borders_t*)malloc(sizeof(borders_t));
+    // struct borders_t initBorder = {0,0,0,0};
+    // borders = initBorder;
+
     initHarvest(harvest, MAX_HARVEST_SIZE);
     initHead(head[i], x, y);
-    // initBorders(head[i]);
+    initBorder(borders);
+    
     head[i]->harvest  = harvest; // прикрепляем к голове телеги
     head[i]->cartSize    = size+1;
     head[i]->loadedCart  = 0;
 	head[i]->autoMove = false;
     head[i]->controls = default_controls;
+    head[i]->border = borders;
     //~ head->controls = default_controls[1];
 }
 
@@ -210,11 +227,12 @@ void go(drone_t *head)
         break;
         case LEFT:
             if(head->x == 0){ // проверка на границу
-                // head->borders->left = 1;
+                head->border->left = 1;
                 head->direction = 0;
             }
             else if(head->x > 0) {
-                // head->borders->left = 0;
+                head->border->left = 0;
+                head->border->right = 0;
                 head->direction = LEFT;
 				mvprintw(head->y, --(head->x), "%c", ch);
             }
@@ -222,32 +240,35 @@ void go(drone_t *head)
         case RIGHT:
             if(head->x == max_x - 1){ // проверка на границу
                 head->direction = 0;
-                // head->borders->right = 1;
+                head->border->right = 1;
             }
             else if(head->x < max_x){
-                // head->borders->right = 0;
+                head->border->right = 0;
+                head->border->left = 0;
                 head->direction = RIGHT;
 				mvprintw(head->y, ++(head->x), "%c", ch);
             }
         break;
         case UP:
             if(head->y == MIN_Y) { // проверка на границу
-                // head->borders->up = 1;
+                head->border->up = 1;
                 head->direction = 0;
             }
 			else if(head->y > MIN_Y){
-                // head->borders->up = 0;
+                head->border->up = 0;
+                head->border->down = 0;
                 head->direction = UP;
 				mvprintw(--(head->y), head->x, "%c", ch);
             }
         break;
         case DOWN:
             if(head->y == max_y - 1){ // проверка на границу
-                // head->borders->down = 1;
+                head->border->down = 1;
                 head->direction = 0;
             }
             else if(head->y < max_y){
-                // head->borders->down = 0;
+                head->border->up = 0;
+                head->border->down = 0;
                 head->direction = DOWN;
 				mvprintw(++(head->y), head->x, "%c", ch);
             }
@@ -580,6 +601,10 @@ void update(drone_t *head, struct food f[], int key)
 {
     // вывод координат головы, код кнопки, направления движения, количества оставшейся еды
 	mvprintw(1, 40, "  x - %d, y - %d, key - %d, dir - %d, food - %d auto - %d  ", head->x, head->y, key, head->direction, SEED_NUMBER, head->autoMove); // вывод координат дрона
+
+    mvprintw(4,12,"%d",head->border->up);
+    mvprintw(5,11,"%d %d",head->border->left,head->border->right);
+    mvprintw(6,12,"%d",head->border->down);
 
     refreshFood(f, MAX_FOOD_SIZE);
     
