@@ -12,10 +12,12 @@
 double DELAY = 0.1;
 int SEED_NUMBER = 10;
 
-enum {  LEFT=1, 
+enum {  STOP,
+        LEFT, 
         UP,
         RIGHT, 
         DOWN,
+        MOVERS
 };
 
 enum {  STOP_GAME=KEY_F(10), 
@@ -222,7 +224,7 @@ void go(drone_t *head)
     head->harvestStartY = head->y;
     switch (head->direction)
     {
-        case 0:
+        case STOP:
 
         break;
         case LEFT:
@@ -272,6 +274,9 @@ void go(drone_t *head)
                 head->direction = DOWN;
 				mvprintw(++(head->y), head->x, "%c", ch);
             }
+        break;
+        case MOVERS:
+
         break;
         default:
         break;
@@ -552,10 +557,61 @@ void autoChangeDirection(drone_t *drone, struct food f[], int foodSize) {
         dronePurpose.x = max_x/2;
         dronePurpose.y = max_x/2;
     }
+    if(drone->loadedCart == MAX_HARVEST_SIZE){
+        dronePurpose.x = home.x;
+        dronePurpose.y = home.y;
+    }
+
+    if((drone->x == home.x)&&(drone->y == home.y)&&(drone->loadedCart == MAX_HARVEST_SIZE)){
+        drone->direction = MOVERS;
+        return;
+    }
     
     // выделение еды к которой стремится дрон
     f[pointer].point = 'O';
     mvprintw(dronePurpose.y, dronePurpose.x, "%c", f[pointer].point);
+
+    /* Логика для уворачивания от границ */
+    if(!drone->direction){
+        if(drone->border->up){ // уворачивание от верхней границы
+            newDirection = RIGHT;
+            if(!findHarvestConflict(drone, newDirection)){
+                newDirection = LEFT;
+            }
+            if(!findHarvestConflict(drone, newDirection)){
+                newDirection = DOWN;
+            }
+        }
+        if(drone->border->right){ // уворачивание от правой границы
+            newDirection = DOWN;
+            if(!findHarvestConflict(drone, newDirection)){
+                newDirection = UP;
+            }
+            if(!findHarvestConflict(drone, newDirection)){
+                newDirection = LEFT;
+            }
+        }
+        if(drone->border->down){ // уворачивание от нижней границы
+            newDirection = RIGHT;
+            if(!findHarvestConflict(drone, newDirection)){
+                newDirection = LEFT;
+            }
+            if(!findHarvestConflict(drone, newDirection)){
+                newDirection = UP;
+            }
+        }
+        if(drone->border->left){ // уворачивание от левой границы
+            newDirection = UP;
+            if(!findHarvestConflict(drone, newDirection)){
+                newDirection = DOWN;
+            }
+            if(!findHarvestConflict(drone, newDirection)){
+                newDirection = RIGHT;
+            }
+        }
+        drone->direction = newDirection;
+    }
+    
 
     // если дрон в стороне от еды
     if ((drone->direction == RIGHT || drone->direction == LEFT) && (drone->y != dronePurpose.y)) {  // горизонтальное движение
