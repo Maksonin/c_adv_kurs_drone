@@ -7,10 +7,10 @@
 #include <unistd.h>
 
 #define MIN_Y    3
-#define PLAYERS  1
+#define PLAYERS  2
 
 double DELAY = 0.1;
-int SEED_NUMBER = 10;
+int SEED_NUMBER = 20;
 
 enum {  STOP,
         LEFT, 
@@ -27,7 +27,7 @@ enum {  STOP_GAME=KEY_F(10),
 };
 enum {	MAX_HARVEST_SIZE=6, 
 		START_HARVEST_SIZE=6, 
-		MAX_FOOD_SIZE=10, 
+		MAX_FOOD_SIZE=20, 
 		FOOD_EXPIRE_SECONDS=0,
 };
 enum {
@@ -51,6 +51,17 @@ struct control_buttons default_controls[CONTROLS] = {   {KEY_DOWN, KEY_UP, KEY_L
                                                         {0xFFFFFFEB, 0xFFFFFFE6, 0xFFFFFFE4, 0xFFFFFFA2},
                                                         {0xFFFFFF9B, 0xFFFFFF96, 0xFFFFFF94, 0xFFFFFF82}
 };
+
+struct control_buttons pleer1_controls[CONTROLS] = 
+                            {{'s', 'w', 'a', 'd'},
+                            {'S', 'W', 'A', 'D'},
+                            {'ы', 'ц', 'ф', 'в'},
+                            {'Ы', 'Ц', 'Ф', 'В'}};
+struct control_buttons pleer2_controls[CONTROLS] =
+                            {{KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},
+                            {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},
+                            {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},
+                            {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT}};
 
 /*
  Структура drone содержит в себе
@@ -221,7 +232,7 @@ void go(drone_t *head)
     switch (head->direction)
     {
         case STOP:
-
+            mvprintw(head->y, head->x, "%c", ch);
         break;
         case LEFT:
             if(head->x == 0){ // проверка на границу
@@ -274,8 +285,8 @@ void go(drone_t *head)
         default:
         break;
     }
-    if(!(head->direction))
-        mvprintw(head->y, head->x, "%c", ch);
+    // if(!(head->direction))
+    //     mvprintw(head->y, head->x, "%c", ch);
     
     refresh();
 }
@@ -333,14 +344,14 @@ void changeDirection(struct drone_t* drone, const int32_t key)
 */
 int checkDirection(drone_t* drone, int32_t key)
 {
-    for (int i = 0; i < CONTROLS; i++)
+    for (int i = 0; i < CONTROLS; i++){
         if((drone->controls[i].down  == key && drone->direction==UP)    ||
            (drone->controls[i].up    == key && drone->direction==DOWN)  ||
            (drone->controls[i].left  == key && drone->direction==RIGHT) ||
-           (drone->controls[i].right == key && drone->direction==LEFT))
-        {
+           (drone->controls[i].right == key && drone->direction==LEFT)) {
             return 0;
         }
+    }
     return 1;
 }
 
@@ -479,15 +490,6 @@ void addharvest(struct drone_t *head)
 */
 _Bool findHarvestConflict(drone_t *drone, int newDirection){
     /***/
-    char *st[] = {
-        "   -   ",
-        " Left  ",
-        " Up    ",
-        " Right ",
-        " Down  ",
-    };
-    mvprintw(1, 100, " %s ", st[newDirection]);
-    /***/
     for(int i = 0; i < MAX_HARVEST_SIZE; i++){
         if(newDirection == UP){
             if((drone->y - 1 == drone->harvest[i].y) && (drone->x == drone->harvest[i].x )){
@@ -542,7 +544,7 @@ void autoChangeDirection(drone_t *drone, struct food f[], int foodSize) {
                 dronePurpose.x = f[i].x;
                 dronePurpose.y = f[i].y;
             }
-            mvprintw(3,1,"%d -- %d %d   ", pointer, dronePurpose.x, dronePurpose.y);
+            // mvprintw(3,1,"%d -- %d %d   ", pointer, dronePurpose.x, dronePurpose.y);
         }
     }
     /* если дрону непонятно направление, то движение центр поля */
@@ -570,8 +572,8 @@ void autoChangeDirection(drone_t *drone, struct food f[], int foodSize) {
     }
     
     // выделение еды к которой стремится дрон
-    f[pointer].point = 'O';
-    mvprintw(dronePurpose.y, dronePurpose.x, "%c", f[pointer].point);
+    // f[pointer].point = 'O';
+    // mvprintw(dronePurpose.y, dronePurpose.x, "%c", f[pointer].point);
 
     /* Логика для уворачивания от границ */
     if(!drone->direction){
@@ -658,27 +660,46 @@ void autoChangeDirection(drone_t *drone, struct food f[], int foodSize) {
 void update(drone_t *head, struct food f[], int key)
 {
     // вывод координат головы, код кнопки, направления движения, количества оставшейся еды
-	mvprintw(1, 40, "  x - %d, y - %d, key - %d, dir - %d, food - %d auto - %d  ", head->x, head->y, key, head->direction, SEED_NUMBER, head->autoMove); // вывод координат дрона
+	//mvprintw(1, 40, "  x - %d, y - %d, key - %d, dir - %d, food - %d auto - %d  ", head->x, head->y, key, head->direction, SEED_NUMBER, head->autoMove); // вывод координат дрона
 
-    mvprintw(4,12,"%d",head->border->up);
-    mvprintw(5,11,"%d %d",head->border->left,head->border->right);
-    mvprintw(6,12,"%d",head->border->down);
+    // mvprintw(4,12,"%d",head->border->up);
+    // mvprintw(5,11,"%d %d",head->border->left,head->border->right);
+    // mvprintw(6,12,"%d",head->border->down);
 
     refreshFood(f, MAX_FOOD_SIZE);
     
-    if (checkDirection(head, key))
-    {
-        changeDirection(head, key);
+    if((key && (!head->autoMove))){
+        int check = 0;
+        for (int i = 0; i < CONTROLS; i++)
+        {
+            if (key == head->controls[i].down)
+                check++;
+            else if (key == head->controls[i].up)
+                check++;
+            else if (key == head->controls[i].right)
+                check++;
+            else if (key == head->controls[i].left)
+                check++;
+        }
+
+        if(check == 0)
+            return;
+        else {
+            if (checkDirection(head, key)){
+                changeDirection(head, key);
+            }
+        }
     }
+        
     if(head->autoMove){
-        autoChangeDirection(head,f,MAX_FOOD_SIZE);
+        autoChangeDirection(head, f, MAX_FOOD_SIZE);
     }
     if(!(head->direction)){
-        mvprintw(1, 30, " Border ");
+        mvprintw(1, 30, " STOP ");
         return;
     }
     else {
-        mvprintw(1, 30, "        ");
+        mvprintw(1, 30, "     ");
         /*  */
         if(head->autoMove){
             DELAY = 0.1;
@@ -693,14 +714,14 @@ void update(drone_t *head, struct food f[], int key)
 	    }
     }
 
-    // тестовый вывод состояния тележек
-    for(int i = 0; i < MAX_HARVEST_SIZE; i++){
-       mvprintw(3 + i, 80, " %d - %d - %d - %d ", i, head->harvest[i].x, head->harvest[i].y, head->harvest[i].full);
-    }
-    // тестовый вывод состояния еды
-    for(int i = 0; i < MAX_FOOD_SIZE; i++){
-       mvprintw(3 + i, 100, " %d - %d - %c - %d ", food[i].x, food[i].y, food[i].point, food[i].enable);
-    }
+    // // тестовый вывод состояния тележек
+    // for(int i = 0; i < MAX_HARVEST_SIZE; i++){
+    //    mvprintw(3 + i, 80, " %d - %d - %d - %d ", i, head->harvest[i].x, head->harvest[i].y, head->harvest[i].full);
+    // }
+    // // тестовый вывод состояния еды
+    // for(int i = 0; i < MAX_FOOD_SIZE; i++){
+    //    mvprintw(3 + i, 100, " %d - %d - %c - %d ", food[i].x, food[i].y, food[i].point, food[i].enable);
+    // }
 
     returnHome(head, &home); // проверка на возврат домой
 
@@ -770,10 +791,11 @@ int main(void)
 {
 	drone_t* drones[PLAYERS];
     for (int i = 0; i < PLAYERS; i++)
-        initDrone(drones, START_HARVEST_SIZE, 10+i*10, 10+i*10, i);
+        initDrone(drones, START_HARVEST_SIZE, 10, 10+(i+3), i);
 
-    drones[0]->controls = default_controls;
-    // drones[1]->controls = pleer2_controls;
+    drones[0]->controls = pleer1_controls;
+    drones[1]->controls = pleer2_controls;
+
     initscr();
     keypad(stdscr, TRUE); // Включаем F1, F2, стрелки и т.д.
     raw();                // Откдючаем line buffering
@@ -790,17 +812,19 @@ int main(void)
     for(int i = 0; i < getmaxx(stdscr); i++)
         mvprintw(2, i,"-");
 
-    /** Отрисовка дрона и телег **/
-    /* отрисовка головы дрона */
-    char ch = '@';
-    mvprintw(drones[0]->y, drones[0]->x, "%c", ch);
-    /* отрисовка телег */
-    ch = '_';
-    for(int i = 0; i < drones[0]->cartSize - 1; i++)
-    {
-        drones[0]->harvest[i].y = drones[0]->y;
-        drones[0]->harvest[i].x = (drones[0]->x) - 1 - i;
-        mvprintw(drones[0]->harvest[i].y, drones[0]->harvest[i].x, "%c", ch);
+    for (int i = 0; i < PLAYERS; i++){
+        /** Отрисовка дрона и телег **/
+        /* отрисовка головы дрона */
+        char ch = '@';
+        mvprintw(drones[i]->y, drones[i]->x, "%c", ch);
+        /* отрисовка телег */
+        ch = '_';
+        for(int i1 = 0; i1 < drones[i]->cartSize - 1; i1++)
+        {
+            drones[i]->harvest[i1].y = drones[i]->y;
+            drones[i]->harvest[i1].x = (drones[i]->x) - 1 - i1;
+            mvprintw(drones[i]->harvest[i1].y, drones[i]->harvest[i1].x, "%c", ch);
+        }
     }
     /* **** **** */
     
@@ -814,18 +838,17 @@ int main(void)
         clock_t begin = clock();
         key_pressed = getch(); // Считываем клавишу
 
-        // включение/выключение автоматического движения дрона
-        if (key_pressed == AUTO_MOVE) 
-        {
-            if(drones[0]->autoMove)
-                drones[0]->autoMove = false;
-            else
-                drones[0]->autoMove = true;
-        }
+        for (int i = 0; i < PLAYERS; i++){
+            // включение/выключение автоматического движения дрона
+            if (key_pressed == AUTO_MOVE) 
+            {
+                if(drones[i]->autoMove)
+                    drones[i]->autoMove = false;
+                else
+                    drones[i]->autoMove = true;
+            }
 
-        // обработка движения
-        for (int i = 0; i < PLAYERS; i++)
-        {
+            // обработка движения
             update(drones[i], food, key_pressed);
 
             if(!SEED_NUMBER){ // если еда на поле закончилась
