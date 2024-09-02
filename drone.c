@@ -141,7 +141,6 @@ void initHarvest(harvest_t t[], size_t size)
 * Инициализация границ 
 */
 void initBorder(borders_t *borders){
-    // struct borders_t initBorders = {0,0,0,0};
     borders->up=0;
     borders->down=0;
     borders->left=0;
@@ -156,8 +155,6 @@ void initDrone(drone_t *head[], size_t size, int x, int y,int i)
     head[i]    = (drone_t*)malloc(sizeof(drone_t));
 	harvest_t*  harvest  = (harvest_t*)malloc(MAX_HARVEST_SIZE*sizeof(harvest_t));
     borders_t* borders = (borders_t*)malloc(sizeof(borders_t));
-    // struct borders_t initBorder = {0,0,0,0};
-    // borders = initBorder;
 
     initHarvest(harvest, MAX_HARVEST_SIZE);
     initHead(head[i], x, y);
@@ -169,7 +166,6 @@ void initDrone(drone_t *head[], size_t size, int x, int y,int i)
 	head[i]->autoMove = false;
     head[i]->controls = default_controls;
     head[i]->border = borders;
-    //~ head->controls = default_controls[1];
 }
 
 /* 
@@ -274,9 +270,6 @@ void go(drone_t *head)
                 head->direction = DOWN;
 				mvprintw(++(head->y), head->x, "%c", ch);
             }
-        break;
-        case MOVERS:
-
         break;
         default:
         break;
@@ -543,27 +536,36 @@ void autoChangeDirection(drone_t *drone, struct food f[], int foodSize) {
     getmaxyx(stdscr, max_y, max_x); 
 
     for (int i = 0; i < foodSize; i++) {   // ищем ближайшую еду
-        // if((f[i].enable) && (f[i].point != 'O')){ // если еда не собрана и не помечена как выбранная
         if(f[i].enable){ // если еда не собрана и не помечена как выбранная
             if(distance(*drone, f[i]) < distance(*drone, f[pointer])){
                 pointer = i;
                 dronePurpose.x = f[i].x;
                 dronePurpose.y = f[i].y;
             }
-            mvprintw(3,1,"%d -- %d %d   ", pointer, distance(*drone, f[i]), distance(*drone, f[pointer]));
+            mvprintw(3,1,"%d -- %d %d   ", pointer, dronePurpose.x, dronePurpose.y);
         }
     }
+    /* если дрону непонятно направление, то движение центр поля */
     if(pointer == -1){
         dronePurpose.x = max_x/2;
-        dronePurpose.y = max_x/2;
+        dronePurpose.y = max_y/2;
     }
+    /* проверка на то, что у дрона заполнены все телеги */
     if(drone->loadedCart == MAX_HARVEST_SIZE){
         dronePurpose.x = home.x;
         dronePurpose.y = home.y;
     }
-
-    if((drone->x == home.x)&&(drone->y == home.y)&&(drone->loadedCart == MAX_HARVEST_SIZE)){
-        drone->direction = MOVERS;
+    /* проверка на то, что дрон собрал оставшийся урожай */
+    if(drone->loadedCart == SEED_NUMBER ){
+        dronePurpose.x = home.x;
+        dronePurpose.y = home.y;
+    }
+    /* режим резгрузки */
+    if((drone->x == home.x)&&(drone->loadedCart > 0)){
+        if(drone->direction == LEFT)
+            dronePurpose.x = home.x - MAX_HARVEST_SIZE;
+        else if(drone->direction == RIGHT)
+            dronePurpose.x = home.x + MAX_HARVEST_SIZE;
         return;
     }
     
