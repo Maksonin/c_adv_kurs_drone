@@ -697,12 +697,13 @@ void update(drone_t *head, struct food f[], int key)
     if(head->autoMove){
         autoChangeDirection(head, f, MAX_FOOD_SIZE);
     }
+    
     if(!(head->direction)){
-        mvprintw(1, 30, " STOP ");
+        mvprintw(1, 20, " STOP ");
         return;
     }
     else {
-        mvprintw(1, 30, "     ");
+        mvprintw(1, 20, "     ");
         /*  */
         if(head->autoMove){
             DELAY = 0.1;
@@ -845,10 +846,14 @@ int main(void)
             // включение/выключение автоматического движения дрона
             if (key_pressed == AUTO_MOVE) 
             {
-                if(drones[i]->autoMove)
+                if(drones[i]->autoMove){
+                    mvprintw(1, 30, "           ");
                     drones[i]->autoMove = false;
-                else
+                }
+                else{
+                    mvprintw(1, 30, " AUTOPILOT ");
                     drones[i]->autoMove = true;
+                }
             }
 
             // обработка движения
