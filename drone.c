@@ -490,15 +490,6 @@ void addharvest(struct drone_t *head)
 */
 _Bool findHarvestConflict(drone_t *drone, int newDirection){
     /***/
-    char *st[] = {
-        "   -   ",
-        " Left  ",
-        " Up    ",
-        " Right ",
-        " Down  ",
-    };
-    mvprintw(1, 100, " %s ", st[newDirection]);
-    /***/
     for(int i = 0; i < MAX_HARVEST_SIZE; i++){
         if(newDirection == UP){
             if((drone->y - 1 == drone->harvest[i].y) && (drone->x == drone->harvest[i].x )){
@@ -677,8 +668,27 @@ void update(drone_t *head, struct food f[], int key)
 
     refreshFood(f, MAX_FOOD_SIZE);
     
-    if (checkDirection(head, key)){
-        changeDirection(head, key);
+    if((key && (!head->autoMove))){
+        int check = 0;
+        for (int i = 0; i < CONTROLS; i++)
+        {
+            if (key == head->controls[i].down)
+                check++;
+            else if (key == head->controls[i].up)
+                check++;
+            else if (key == head->controls[i].right)
+                check++;
+            else if (key == head->controls[i].left)
+                check++;
+        }
+
+        if(check == 0)
+            return;
+        else {
+            if (checkDirection(head, key)){
+                changeDirection(head, key);
+            }
+        }
     }
         
     if(head->autoMove){
