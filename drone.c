@@ -45,16 +45,26 @@ struct control_buttons
     int right;
 } control_buttons;
 
+struct control_buttons default_controls[CONTROLS] = {   {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},
+                                                        {'s', 'w', 'a', 'd'},
+                                                        {'S', 'W', 'A', 'D'},
+                                                        {0xFFFFFFEB, 0xFFFFFFE6, 0xFFFFFFE4, 0xFFFFFFA2},
+                                                        {0xFFFFFF9B, 0xFFFFFF96, 0xFFFFFF94, 0xFFFFFF82}
+};
+
 struct control_buttons pleer1_controls[CONTROLS] = 
                             {{'s', 'w', 'a', 'd'},
                             {'S', 'W', 'A', 'D'},
                             {'ы', 'ц', 'ф', 'в'},
-                            {'Ы', 'Ц', 'Ф', 'В'}};
+                            {'Ы', 'Ц', 'Ф', 'В'}
+                            };
+
 struct control_buttons pleer2_controls[CONTROLS] =
                             {{KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},
                             {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},
                             {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},
-                            {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT}};
+                            {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT}
+                            };
 
 /*
  Структура drone содержит в себе
