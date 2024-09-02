@@ -10,7 +10,7 @@
 #define PLAYERS  2
 
 double DELAY = 0.1;
-int SEED_NUMBER = 20;
+int SEED_NUMBER = 15;
 
 enum {  STOP,
         LEFT, 
@@ -27,7 +27,7 @@ enum {  STOP_GAME=KEY_F(10),
 };
 enum {	MAX_HARVEST_SIZE=6, 
 		START_HARVEST_SIZE=6, 
-		MAX_FOOD_SIZE=20, 
+		MAX_FOOD_SIZE=15,
 		FOOD_EXPIRE_SECONDS=0,
 };
 enum {
@@ -44,13 +44,6 @@ struct control_buttons
     int left;
     int right;
 } control_buttons;
-
-struct control_buttons default_controls[CONTROLS] = {   {KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT},
-                                                        {'s', 'w', 'a', 'd'},
-                                                        {'S', 'W', 'A', 'D'},
-                                                        {0xFFFFFFEB, 0xFFFFFFE6, 0xFFFFFFE4, 0xFFFFFFA2},
-                                                        {0xFFFFFF9B, 0xFFFFFF96, 0xFFFFFF94, 0xFFFFFF82}
-};
 
 struct control_buttons pleer1_controls[CONTROLS] = 
                             {{'s', 'w', 'a', 'd'},
@@ -764,7 +757,7 @@ void printLevel(struct drone_t *head)
 {
     int max_x = 0, max_y = 0;
     getmaxyx(stdscr, max_y, max_x);
-    mvprintw(0, max_x - 20, "HARVEST: %d / %d", head->loadedCart, MAX_HARVEST_SIZE);
+    mvprintw(0, max_x - 20, " HARVEST: %d / %d ", MAX_FOOD_SIZE-SEED_NUMBER, MAX_FOOD_SIZE);
 }
 
 /*
