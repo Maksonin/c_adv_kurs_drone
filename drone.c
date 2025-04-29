@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <curses.h>
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "curses.h"
 
 #define MIN_Y    3
 #define PLAYERS  2
